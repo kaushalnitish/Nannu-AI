@@ -296,10 +296,53 @@ export function getPreferenceProfileString(): string {
   }
 
   profileSummaryParts.push(`Creator's custom text trend layout: ${profile.sentenceLengthTrend}`);
-
+  
   if (profile.successfulPatterns.length > 0) {
     profileSummaryParts.push(`Creator's successful content historical topics: "${profile.successfulPatterns.slice(-4).join('", "')}"`);
   }
 
   return profileSummaryParts.join(" | ");
 }
+
+export interface AnalyticsEvent {
+  timestamp: string;
+  event: string;
+  metadata: any;
+}
+
+export function logAnalyticsEvent(event: string, metadata: any = {}) {
+  try {
+    const raw = localStorage.getItem("nannu_analytics_events");
+    const events: AnalyticsEvent[] = raw ? JSON.parse(raw) : [];
+    
+    events.unshift({
+      timestamp: new Date().toISOString(),
+      event,
+      metadata
+    });
+    
+    // limited to 100 entries for mobile space conservation
+    if (events.length > 100) {
+      events.pop();
+    }
+    
+    localStorage.setItem("nannu_analytics_events", JSON.stringify(events));
+    console.log(`[ANALYTICS] ${event}`, metadata);
+  } catch (err) {
+    console.warn("Failsafe analytics exception:", err);
+  }
+}
+
+export function getAnalyticsEvents(): AnalyticsEvent[] {
+  try {
+    const raw = localStorage.getItem("nannu_analytics_events");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearAnalyticsEvents() {
+  localStorage.removeItem("nannu_analytics_events");
+}
+

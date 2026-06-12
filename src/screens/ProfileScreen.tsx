@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import GlowCard from "../components/GlowCard";
-import { getSavedPreferenceProfile, savePreferenceProfile, PreferenceProfile } from "../utils/preferences";
+import { getSavedPreferenceProfile, savePreferenceProfile, PreferenceProfile, getAnalyticsEvents, clearAnalyticsEvents, logAnalyticsEvent } from "../utils/preferences";
 import { getSavedLibrary, deleteLibraryItem, toggleFavoriteItem, getSavedVoiceSettings, saveVoiceSettings } from "../utils/mockData";
 import { LibraryItem, VoiceSettings } from "../types";
 
@@ -75,6 +75,21 @@ export default function ProfileScreen({
   const [dragOver, setDragOver] = useState(false);
   const [writingSampleTab, setWritingSampleTab] = useState<"upload" | "script" | "caption">("upload");
   const [isAdvancedCollapsibleOpen, setIsAdvancedCollapsibleOpen] = useState(false);
+
+  // Local state for developer diagnostics and analytics logs
+  const [analyticsEvents, setAnalyticsEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (activeSection === "settings") {
+      setAnalyticsEvents(getAnalyticsEvents());
+    }
+  }, [activeSection]);
+
+  const handleClearLogs = () => {
+    clearAnalyticsEvents();
+    setAnalyticsEvents([]);
+    logAnalyticsEvent("Analytics Cleared", { byUser: true });
+  };
 
   // Load preferences and data elements
   useEffect(() => {
@@ -655,6 +670,79 @@ export default function ProfileScreen({
                 <span className="text-[#A1A1AA]">Email Broadcast Notifications</span>
                 <span className="text-[#C8FF5A] font-bold">ACTIVE 🔥</span>
               </div>
+            </GlowCard>
+
+            {/* Developer Diagnostics & Analytics Log */}
+            <GlowCard glowColor="none" className="p-4.5 bg-[#111111]/95 border-red-500/10 space-y-3.5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 h-24 w-24 bg-red-500/[0.02] rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-[11px] font-mono font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 bg-red-500 rounded-full animate-ping" />
+                    <span>Diagnostics & Verification Log</span>
+                  </h4>
+                  <p className="text-[9px] text-[#A1A1AA] mt-0.5 leading-tight">Live tracking of core system clicks, triggers, failures and API syncs.</p>
+                </div>
+                
+                {analyticsEvents.length > 0 && (
+                  <button
+                    onClick={handleClearLogs}
+                    className="p-1 px-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-mono text-[8px] rounded uppercase font-black tracking-wider transition-all border border-red-500/15 cursor-pointer"
+                  >
+                    Clear Logs
+                  </button>
+                )}
+              </div>
+
+              {analyticsEvents.length === 0 ? (
+                <div className="p-3 bg-white/[0.01] border border-white/5 rounded-xl text-center">
+                  <span className="text-[10px] text-zinc-500 font-mono tracking-wide">No diagnostic events logged. Start creating to trigger analytics!</span>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {analyticsEvents.slice(0, 8).map((ev, index) => {
+                    const date = new Date(ev.timestamp);
+                    const isErr = ev.event.toLowerCase().includes("fail") || ev.event.toLowerCase().includes("err");
+                    const isSuccess = ev.event.toLowerCase().includes("success");
+                    const isFallback = ev.event.toLowerCase().includes("fallback");
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        className="p-2.5 bg-[#050505] border border-white/5 rounded-xl flex flex-col gap-1 hover:border-white/10 transition-colors"
+                      >
+                        <div className="flex items-center justify-between text-[9px] font-mono">
+                          <span className={`font-black uppercase tracking-wider ${
+                            isErr ? "text-red-400" : isSuccess ? "text-[#C8FF5A]" : isFallback ? "text-[#FFBE1A]" : "text-purple-400"
+                          }`}>
+                            {ev.event}
+                          </span>
+                          <span className="text-zinc-500 text-[8px]">
+                            {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                        
+                        {/* Render metadata cleanly */}
+                        {ev.metadata && Object.keys(ev.metadata).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {Object.entries(ev.metadata).map(([k, v]) => (
+                              <span key={k} className="px-1.5 py-0.5 bg-white/[0.03] text-[8.5px] font-mono text-[#A1A1AA] rounded border border-white/5 leading-none">
+                                <span className="text-zinc-500">{k}:</span> {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {analyticsEvents.length > 8 && (
+                    <div className="text-center text-[8.5px] font-mono text-zinc-500 pt-1">
+                      + {analyticsEvents.length - 8} additional verification event records preserved.
+                    </div>
+                  )}
+                </div>
+              )}
             </GlowCard>
           </motion.div>
         )}

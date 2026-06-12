@@ -24,7 +24,8 @@ import {
   trackSaveAction,
   trackRegenerateAction,
   trackEditAction,
-  trackRevisitAction
+  trackRevisitAction,
+  logAnalyticsEvent
 } from "./utils/preferences";
 
 // Components
@@ -64,16 +65,53 @@ export default function App() {
   };
 
   // Creation State parameters
-  const [prompt, setPrompt] = useState("");
-  const [mood, setMood] = useState("Confident 😎");
-  const [duration, setDuration] = useState("45 sec");
-  const [contentType, setContentType] = useState("Talking Head");
-  const [language, setLanguage] = useState("English");
+  const [prompt, setPrompt] = useState(() => localStorage.getItem("nannu_prompt") || "");
+  const [mood, setMood] = useState(() => localStorage.getItem("nannu_mood") || "Confident 😎");
+  const [duration, setDuration] = useState(() => localStorage.getItem("nannu_duration") || "45 sec");
+  const [contentType, setContentType] = useState(() => localStorage.getItem("nannu_contentType") || "Talking Head");
+  const [language, setLanguage] = useState(() => localStorage.getItem("nannu_language") || "English");
 
   // Output States
-  const [generatedPayload, setGeneratedPayload] = useState<GeneratedScriptPayload | null>(null);
+  const [generatedPayload, setGeneratedPayload] = useState<GeneratedScriptPayload | null>(() => {
+    try {
+      const saved = localStorage.getItem("nannu_generatedPayload");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isModifyingCaption, setIsModifyingCaption] = useState(false);
+
+  // Synchronize state parameter metrics to survive refreshes and navigation actions
+  useEffect(() => {
+    localStorage.setItem("nannu_prompt", prompt);
+  }, [prompt]);
+
+  useEffect(() => {
+    localStorage.setItem("nannu_mood", mood);
+  }, [mood]);
+
+  useEffect(() => {
+    localStorage.setItem("nannu_duration", duration);
+  }, [duration]);
+
+  useEffect(() => {
+    localStorage.setItem("nannu_contentType", contentType);
+  }, [contentType]);
+
+  useEffect(() => {
+    localStorage.setItem("nannu_language", language);
+  }, [language]);
+
+  useEffect(() => {
+    if (generatedPayload) {
+      localStorage.setItem("nannu_generatedPayload", JSON.stringify(generatedPayload));
+    } else {
+      localStorage.removeItem("nannu_generatedPayload");
+    }
+  }, [generatedPayload]);
 
   // Persistence States
   const [libraryList, setLibraryList] = useState<LibraryItem[]>([]);
@@ -169,6 +207,14 @@ export default function App() {
     navigateTo("generating");
     setIsGenerating(true);
 
+    logAnalyticsEvent("Generate Clicked", {
+      prompt: prompt,
+      mood: mood,
+      duration: duration,
+      contentType: selectedType,
+      language: language
+    });
+
     try {
       console.log("Requesting script generation via Express proxy with automatic learned profile...");
       const response = await fetch("/api/generate", {
@@ -189,10 +235,26 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Server returned non-ok format status");
+        throw new Error(`Server returned status code: ${response.status}`);
       }
 
       const payloadData: GeneratedScriptPayload = await response.json();
+      if (!payloadData || !payloadData.script || !payloadData.script.hook || !payloadData.script.body) {
+        throw new Error("Invalid or empty response payload structure from script server");
+      }
+
+      const totalLen = (payloadData.script.hook.text.length + payloadData.script.body.text.length + payloadData.script.cta.text.length);
+      logAnalyticsEvent("Generation Success", {
+        prompt: prompt,
+        mood: mood,
+        duration: duration,
+        contentType: selectedType,
+        language: language,
+        isFallback: payloadData.isFallback || false,
+        length: totalLen,
+        under100Chars: totalLen < 100
+      });
+
       setGeneratedPayload(payloadData);
 
       // Save output to creator library records persistent
@@ -218,9 +280,121 @@ export default function App() {
         navigateTo("script");
       }, 500);
 
-    } catch (err) {
-      console.error("AI Generation failed, falling back to mock sandbox draft:", err);
-      // Wait for loader simulation and complete with mock safely
+    } catch (err: any) {
+      logAnalyticsEvent("Generation Failed", {
+        prompt: prompt,
+        mood: mood,
+        duration: duration,
+        contentType: selectedType,
+        language: language,
+        error: err.message || String(err)
+      });
+      console.error("AI Generation failed, initiating premium client-side backup generator:", err);
+      
+      // Calculate high-fidelity client-side generated content
+      const cleanPrompt = prompt.trim() || "my daily routine";
+      const isSavage = mood.toLowerCase().includes("roast") || mood.toLowerCase().includes("brutal") || mood.toLowerCase().includes("savage");
+      const isStory = selectedType.toLowerCase().includes("story") || mood.toLowerCase().includes("story") || mood.toLowerCase().includes("personal");
+      
+      let hookText = "";
+      let bodyText = "";
+      let ctaText = "";
+      
+      if (language === "Hindi") {
+        if (isSavage) {
+          hookText = `क्या आप भी "${cleanPrompt}" को लेकर वही पुरानी घिसी-पिटी गलतियां कर रहे हैं? इसे तुरंत रोकिए!`;
+          bodyText = `चलिए "${cleanPrompt}" के बारे में कड़वा सच बोलते हैं। इंटरनेट पर जितने भी लोग ज्ञान दे रहे हैं, वे सब सिर्फ कॉपी-पेस्ट कर रहे हैं। बिना सोचे-समझे दूसरों की नकल करने से आपकी पहुंच शून्य रहेगी। अगर असली असर डालना है, तो सबसे पहले बकवास बातों को काटकर सीधे काम की क्रेडिबिलिटी पर बात करना शुरू करें।`;
+          ctaText = `अगर आप भी "${cleanPrompt}" के इस सच को महसूस करते हैं, तो कमेंट्स में 'कड़वा सच' लिखें।`;
+        } else if (isStory) {
+          hookText = `मैं हमेशा "${cleanPrompt}" से दूर भागता रहा, जब तक कि एक चौंकाने वाले अनुभव ने मेरा दृष्टिकोण नहीं बदल दिया।`;
+          bodyText = `इस यात्रा में सबसे कठिन क्षण तब आया जब मुझे एहसास हुआ कि जिसे मैं मामूली समझ रहा था, वह सबसे बड़ा सबक था। "${cleanPrompt}" ने मुझे सिखाया कि असफलता सिर्फ एक मोड़ है, कोई अंत नहीं। सच्ची कहानी वह होती है जिसमें आप अपनी कमजोरियों को स्वीकार करके आगे बढ़ते हैं।`;
+          ctaText = `क्या आपके पास भी "${cleanPrompt}" से जुड़ी ऐसी कोई कहानी है? मुझे कमेंट्स में ज़रूर बताएं।`;
+        } else {
+          hookText = `तो ये है "${cleanPrompt}" का वो अनोखा रहस्य, जो बड़े-बड़े क्रिएटर्स आपसे हमेशा छिपाते हैं।`;
+          bodyText = `बात बहुत सीधी है: जब आप "${cleanPrompt}" पर ध्यान केंद्रित करते हैं, तो कठिनाइयाँ कम होने लगती हैं। आपको बस एक मजबूत हुक और सही शब्दों के चयन की आवश्यकता है। आज ही से इस सरल रणनीति को अपने काम में लागू करें, और परिणामों में बदलाव देखें।`;
+          ctaText = `"${cleanPrompt}" पर आपकी क्या राय है? कमेंट करें और ऐसी अन्य जानकारियों के लिए फॉलो करें।`;
+        }
+      } else if (language === "Hinglish") {
+        if (isSavage) {
+          hookText = `Stop posting absolutely garbage content about "${cleanPrompt}". Honestly, it's very painful to watch!`;
+          bodyText = `Chalo "${cleanPrompt}" ke baare me bilkul raw aur brutal sach bolte hain. Sab log bas boring copy-paste templates repeat kar rahe hain, isiliye growth zero hai. Agar actual attention chahiye, toh faltu ke intro lines ko trim karo, aur directly high-retention hook aur genuine facts par focused raho.`;
+          ctaText = `Sacchai se agree karte ho toh niche 'REAL' comment karo aur share karo.`;
+        } else if (isStory) {
+          hookText = `Main humesha "${cleanPrompt}" ko avoid karta raha... jab tak ek unexpected shock ne sab kuch badal nahi diya.`;
+          bodyText = `Hum rarely is baat par discuss karte hain ki "${cleanPrompt}" ki reality kya hai. Screen par sab badhiya lagta hai, par peeche ki struggle real hoti hai. Us failure ne mujhe sikhaya ki actual game persistence aur build-up ka hai, fakers ki race ka nahi.`;
+          ctaText = `Agar aapne bhi "${cleanPrompt}" ke dauran aisa downfall dekha hai, toh niche comment me batao.`;
+        } else {
+          hookText = `This is the single most critical formula about "${cleanPrompt}" jo aapko aaj hi seekhni chahiye.`;
+          bodyText = `Sahi strategy ke saath jab aap "${cleanPrompt}" ko analyze karte ho, toh isme hidden details hi real value highlight karti hain. Jyada sochna band karo, bas daily actions me minimal consistency laao aur is smart flow ko strictly test karo.`;
+          ctaText = `Apna sabse bada challenge niche comment karo on "${cleanPrompt}", main personal guide DM karunga.`;
+        }
+      } else {
+        // English Default
+        if (isSavage) {
+          hookText = `Stop posting absolute garbage about "${cleanPrompt}". Honestly, it's painful to witness.`;
+          bodyText = `Let's be brutally real about "${cleanPrompt}". Most creators are putting out shallow, copycat formats with zero substance or core reasoning. If you keep choosing the lazy route, your engagement deserves to stay flat. Here is how you actually fix it: cut the fluff, delete boring intros, and deliver dynamic, unquestionable value.`;
+          ctaText = `Comment 'FACTS' below if you agree that "${cleanPrompt}" needs an unfiltered reality check.`;
+        } else if (isStory) {
+          hookText = `I spent months running away from "${cleanPrompt}"... until this one sudden failure changed everything.`;
+          bodyText = `We rarely talk about what "${cleanPrompt}" actually forces us to confront. Outer appearances look polished, but the actual behind-the-scenes effort is chaotic. This defining moment taught me resilience, precise metric tracking, and the sheer courage to build in public.`;
+          ctaText = `If you have ever faced a major setback with "${cleanPrompt}", drop a comment. Let's talk.`;
+        } else {
+          hookText = `The absolute secret behind "${cleanPrompt}" that top creators won't share to avoid extra competition.`;
+          bodyText = `Here's the key challenge: most general advice on "${cleanPrompt}" assumes you have endless resources or existing authority. The truth is much simpler. You need a sharp hook structure paired with conversational short sentence clusters. Keep the pacing high, call out common doubts, and wrap up with an interactive query.`;
+          ctaText = `Drop a comment with your biggest obstacle about "${cleanPrompt}" to unlock my exclusive checklist.`;
+        }
+      }
+
+      const backupPayload: GeneratedScriptPayload = {
+        script: {
+          hook: { text: hookText, action: `Visual: Speaks with ${mood} pacing. Energetic start focusing on presenter.` },
+          body: { text: bodyText, action: "Visual: Cut to tight close up or dynamic graphics presentation." },
+          cta: { text: ctaText, action: "Visual: Points downward to comments overlay indicator on screen." }
+        },
+        captions: [
+          `My raw perspective on "${cleanPrompt}". 🤫 Save this model immediately before it gets saturated.`,
+          `Stop complicating "${cleanPrompt}". 🛑 Mastering the hook is 90% of the game. Let's build!`,
+          `Stuck with "${cleanPrompt}"? Comment below and let's troubleshoot your structure together.`
+        ],
+        thumbnails: [
+          { title: cleanPrompt.length < 20 ? cleanPrompt : cleanPrompt.slice(0, 18) + "...", description: `Aesthetic slate frame highlighting "${cleanPrompt}" with neon violet glow.` },
+          { title: "The Brutal Truth", description: "Apple-inspired elegant layout with large serif typography." },
+          { title: "Nannu AI Blueprint", description: "Minimalist layout with clean data panels and creator scorecards." }
+        ],
+        isFallback: true
+      };
+
+      setGeneratedPayload(backupPayload);
+
+      logAnalyticsEvent("Fallback Active", {
+        prompt: cleanPrompt,
+        mood: mood,
+        contentType: selectedType,
+        language: language,
+        reason: "API key error or rate limitation bypass"
+      });
+
+      // Save backup generator output to creator library persistent
+      const newItem: LibraryItem = {
+        id: `lib-fallback-${Date.now()}`,
+        timestamp: "Just now (Local)",
+        prompt: cleanPrompt,
+        mood: mood,
+        duration: duration,
+        contentType: selectedType,
+        language: language,
+        data: backupPayload,
+        isFavorite: false
+      };
+      
+      try {
+        saveLibraryItem(newItem);
+        setLibraryList(getSavedLibrary());
+      } catch (saveErr) {
+        console.error("Local save failed, ignoring", saveErr);
+      }
+
+      // Transition smoothly so UI stays premium
       setTimeout(() => {
         setIsGenerating(false);
         navigateTo("script");
@@ -339,6 +513,14 @@ export default function App() {
     
     // Track saving behavior of this customized script 
     trackSaveAction({ prompt: finalName, mood, contentType, vocabulary: voiceSettings.vocabulary });
+
+    logAnalyticsEvent("Draft Saved", {
+      prompt: finalName,
+      mood: mood,
+      duration: duration,
+      contentType: contentType,
+      language: language
+    });
 
     // Check for existing element in library
     const existing = libraryList.find(item => item.prompt.toLowerCase() === finalName.toLowerCase());
@@ -487,17 +669,30 @@ export default function App() {
       default:
         return (
           <WelcomeScreen
-            onStartCreation={handleStartCreation}
+            onStartCreation={(pText, dur, format, md) => {
+              setPrompt(pText);
+              if (dur) setDuration(dur);
+              if (format) setContentType(format);
+              if (md) setMood(md);
+              const targetFormat = format || contentType;
+              handleFormatSelectAndGenerate(targetFormat);
+            }}
             savedPrompt={prompt}
             language={language}
             onLanguageChange={setLanguage}
+            savedDuration={duration}
+            onDurationChange={setDuration}
+            savedContentType={contentType}
+            onContentTypeChange={setContentType}
+            savedMood={mood}
+            onMoodChange={setMood}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col selection:bg-[#FF4FD8]/30 selection:text-[#FF4FD8]">
+    <div className="min-h-[100dvh] bg-[#050505] text-white flex flex-col selection:bg-[#FF4FD8]/30 selection:text-[#FF4FD8]">
       {/* Immersive top subtle neon glow accents */}
       <div className="absolute top-0 left-12 right-12 h-64 bg-gradient-to-b from-[#FF4FD8]/5 to-transparent blur-3xl pointer-events-none" />
       <div className="absolute top-10 left-1/3 right-1/4 h-48 bg-gradient-to-b from-[#A855F7]/4 to-transparent blur-3xl pointer-events-none" />

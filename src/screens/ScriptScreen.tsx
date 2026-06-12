@@ -3,7 +3,7 @@ import { Copy, Sparkles, RefreshCw, ChevronLeft, ArrowRight, Eye, ClipboardCheck
 import { motion, AnimatePresence } from "motion/react";
 import { GeneratedScriptPayload } from "../types";
 import GlowCard from "../components/GlowCard";
-import { trackCopyAction, trackReadingDuration, trackEditAction, getPreferenceProfileString } from "../utils/preferences";
+import { trackCopyAction, trackReadingDuration, trackEditAction, getPreferenceProfileString, logAnalyticsEvent } from "../utils/preferences";
 import TeleprompterOverlay from "../components/TeleprompterOverlay";
 
 interface Particle {
@@ -722,13 +722,31 @@ export default function ScriptScreen({
         
         {/* practice speaking teleprompter trigger */}
         <button
-          onClick={() => setShowTeleprompter(true)}
+          onClick={() => {
+            logAnalyticsEvent("Teleprompter Active", {
+              prompt,
+              length: (payload.script.hook.text.length + payload.script.body.text.length + payload.script.cta.text.length),
+              checkpoint: "Top Button"
+            });
+            setShowTeleprompter(true);
+          }}
           className="flex items-center gap-2 px-4.5 py-3 rounded-xl bg-gradient-to-r from-[#C1FF40] to-[#E2FF45] hover:brightness-110 active:scale-95 text-black font-black text-xs uppercase font-sans tracking-wider transition-all shadow-[0_0_20px_rgba(200,255,90,0.35)] hover:shadow-[0_0_30px_rgba(200,255,90,0.5)] cursor-pointer self-start sm:self-center shrink-0"
         >
           <Clapperboard size={14} className="text-black" />
           <span>📺 Practice with Teleprompter</span>
         </button>
       </div>
+
+      {payload.isFallback && (
+        <div className="mb-5 p-3.5 bg-gradient-to-r from-[#FFBE1A]/10 via-[#FFBE1A]/5 to-transparent border-l-2 border-[#FFBE1A] rounded-r-xl select-none animate-pulse">
+          <p className="text-xs font-black text-[#FFBE1A] font-sans flex items-center gap-1.5 uppercase tracking-wide">
+            <span>⚠️ DEMO GENERATOR ACTIVE</span>
+          </p>
+          <p className="text-[10px] text-white/70 font-sans mt-0.5 leading-relaxed">
+            API key missing or rate-limited. Nannu's local high-fidelity creator brain has crafted this custom script with Hinglish/Hindi dialect support.
+          </p>
+        </div>
+      )}
 
       {/* Slide segment buttons */}
       <div className="flex bg-[#111111] p-1 rounded-xl border border-white/5 mb-5 select-none">
@@ -1063,7 +1081,14 @@ export default function ScriptScreen({
         <motion.button
           id="script-practice-teleprompter-btn"
           whileTap={{ scale: 0.97 }}
-          onClick={() => setShowTeleprompter(true)}
+          onClick={() => {
+            logAnalyticsEvent("Teleprompter Active", {
+              prompt,
+              length: (payload.script.hook.text.length + payload.script.body.text.length + payload.script.cta.text.length),
+              checkpoint: "In-Studio Banner Button"
+            });
+            setShowTeleprompter(true);
+          }}
           className="w-full py-4.5 px-5 rounded-2xl bg-gradient-to-r from-[#FF4FD8]/10 via-[#A855F7]/5 to-[#C8FF5A]/5 border border-white/10 hover:border-white/20 hover:from-[#FF4FD8]/15 text-white font-bold font-sans flex items-center justify-between cursor-pointer"
         >
           <div className="flex items-center gap-3 text-left">

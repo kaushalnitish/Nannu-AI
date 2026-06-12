@@ -23,6 +23,7 @@ export interface GeneratedScriptPayload {
     title: string;
     description: string;
   }[];
+  isFallback?: boolean;
 }
 
 export interface LibraryItem {

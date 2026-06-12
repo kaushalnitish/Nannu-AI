@@ -6,6 +6,25 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/* Custom global layout resets matching active color schemas */
+html, body {
+  background-color: #050505 !important;
+  color: #ffffff !important;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+/* Base safe area layouts to handle notch & interactive bounds on mobile devices */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Custom modern scrollbar rules */
 ::-webkit-scrollbar {
   width: 4px;

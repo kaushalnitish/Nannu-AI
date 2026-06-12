@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Brain, ArrowRight, Mic, X } from "lucide-react";
+import { Sparkles, Brain, ArrowRight, Mic, X, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import GlowCard from "../components/GlowCard";
 // @ts-ignore
@@ -36,17 +36,29 @@ const HeroBannerCard = () => {
 };
 
 interface WelcomeScreenProps {
-  onStartCreation: (promptText: string) => void;
+  onStartCreation: (promptText: string, selDuration?: string, selFormat?: string, selMood?: string) => void;
   savedPrompt: string;
   language: string;
   onLanguageChange: (lang: string) => void;
+  savedDuration: string;
+  onDurationChange: (dur: string) => void;
+  savedContentType: string;
+  onContentTypeChange: (type: string) => void;
+  savedMood: string;
+  onMoodChange: (mood: string) => void;
 }
 
 export default function WelcomeScreen({
   onStartCreation,
   savedPrompt,
   language,
-  onLanguageChange
+  onLanguageChange,
+  savedDuration,
+  onDurationChange,
+  savedContentType,
+  onContentTypeChange,
+  savedMood,
+  onMoodChange
 }: WelcomeScreenProps) {
   const [prompt, setPrompt] = useState(savedPrompt || "");
   const [greeting, setGreeting] = useState("Good Evening Nannu 👋");
@@ -78,8 +90,31 @@ export default function WelcomeScreen({
 
   const handleGenerate = () => {
     if (!prompt.trim()) return;
-    onStartCreation(prompt);
+    onStartCreation(prompt, savedDuration, savedContentType, savedMood);
   };
+
+  const durationPresets = [
+    { value: "15 Seconds", shortVal: "15s Short" },
+    { value: "45 Seconds", shortVal: "45s Standard" },
+    { value: "90 Seconds", shortVal: "90s Detailed" },
+    { value: "5 Minutes", shortVal: "5m Long-form" }
+  ];
+
+  const formatPresets = [
+    { name: "Talking Head", icon: "🎙️" },
+    { name: "Storytelling", icon: "📖" },
+    { name: "POV", icon: "🎥" },
+    { name: "Carousel", icon: "📱" },
+    { name: "Opinion", icon: "💬" },
+    { name: "List Style", icon: "📊" }
+  ];
+
+  const moodPresets = [
+    { name: "Confident 😎" },
+    { name: "Savage 🌶️" },
+    { name: "Storyteller 📖" },
+    { name: "Inspirational ✨" }
+  ];
 
   return (
     <motion.div
@@ -164,7 +199,7 @@ export default function WelcomeScreen({
                 id={`lang-btn-${lang.id.toLowerCase()}`}
                 key={lang.id}
                 onClick={() => onLanguageChange(lang.id)}
-                className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`flex-1 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
                   isActive
                     ? "bg-[#FF4FD8] text-white shadow-[0_0_15px_rgba(255,79,216,0.4)] scale-102"
                     : "text-white/75 hover:text-white hover:bg-white/5"
@@ -179,8 +214,8 @@ export default function WelcomeScreen({
       </div>
 
       {/* Suggestion Chips */}
-      <div className="mb-8">
-        <p className="text-xs font-mono text-white font-bold uppercase tracking-wider mb-3">
+      <div className="mb-6">
+        <p className="text-xs font-mono text-white font-bold uppercase tracking-wider mb-2.5">
           Suggested Spark Topics
         </p>
         <div className="flex flex-wrap gap-2">
@@ -201,6 +236,99 @@ export default function WelcomeScreen({
         </div>
       </div>
 
+      {/* Super Premium Creative Preset Options */}
+      <div className="mb-8 p-4.5 bg-[#0e0e0e]/95 border border-white/5 rounded-2xl space-y-4">
+        <div className="flex items-center gap-1.5 border-b border-white/5 pb-2.5 text-xs font-mono text-[#D8B4FE]/90 uppercase tracking-wider font-bold">
+          <Layers size={13} className="text-[#FF4FD8]" />
+          <span>Script Optimization Presets</span>
+        </div>
+
+        {/* Duration Select */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wider">Video Duration</span>
+            <span className="text-[11px] font-bold text-[#C8FF5A]">{savedDuration}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {durationPresets.map((preset) => {
+              const active = savedDuration.toLowerCase().includes(preset.value.toLowerCase().split(" ")[0]);
+              return (
+                <button
+                  key={preset.value}
+                  id={`preset-dur-${preset.value.replace(" ", "-")}`}
+                  type="button"
+                  onClick={() => onDurationChange(preset.value)}
+                  className={`py-1.5 text-[10px] font-mono rounded-lg transition-all border ${
+                    active 
+                      ? "bg-[#C8FF5A]/10 border-[#C8FF5A] text-[#C8FF5A] font-bold" 
+                      : "bg-[#161616] border-white/5 text-[#A1A1AA] hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  {preset.shortVal}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Content Format Preset */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wider">Content Format</span>
+            <span className="text-[11px] font-bold text-[#FF4FD8]">{savedContentType}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {formatPresets.map((preset) => {
+              const active = savedContentType === preset.name;
+              return (
+                <button
+                  key={preset.name}
+                  id={`preset-format-${preset.name.replace(" ", "-")}`}
+                  type="button"
+                  onClick={() => onContentTypeChange(preset.name)}
+                  className={`py-1.5 px-1 text-[10px] font-sans rounded-lg transition-all border flex items-center justify-center gap-1 ${
+                    active 
+                      ? "bg-[#FF4FD8]/10 border-[#FF4FD8] text-[#FF4FD8] font-bold" 
+                      : "bg-[#161616] border-white/5 text-[#A1A1AA] hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  <span>{preset.icon}</span>
+                  <span className="truncate">{preset.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Mood select */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wider">Tone & Delivery Mood</span>
+            <span className="text-[11px] font-semibold text-white">{savedMood}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {moodPresets.map((preset) => {
+              const active = savedMood === preset.name;
+              return (
+                <button
+                  key={preset.name}
+                  id={`preset-mood-${preset.name.split(" ")[0]}`}
+                  type="button"
+                  onClick={() => onMoodChange(preset.name)}
+                  className={`py-1.5 px-0.5 text-[9px] font-sans truncate rounded-lg transition-all border ${
+                    active 
+                      ? "bg-white/10 border-white text-white font-bold" 
+                      : "bg-[#161616] border-white/5 text-[#A1A1AA] hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  {preset.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Generating Button */}
       <motion.button
         id="home-generate-cta"
@@ -213,8 +341,8 @@ export default function WelcomeScreen({
             : "bg-white/5 border border-white/5 text-[#A1A1AA]/50 cursor-not-allowed"
         }`}
       >
-        <span>Generate Content</span>
-        <ArrowRight size={18} />
+        <span>Generate AI Script</span>
+        <Sparkles size={18} />
       </motion.button>
 
       {/* Analyzer Divider */}
