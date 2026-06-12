@@ -24,6 +24,7 @@ export interface GeneratedScriptPayload {
     description: string;
   }[];
   isFallback?: boolean;
+  errorReason?: string;
 }
 
 export interface LibraryItem {

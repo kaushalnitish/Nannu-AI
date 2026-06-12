@@ -16,6 +16,7 @@ html, body {
   height: 100%;
   min-height: 100dvh;
   overflow-x: hidden;
+  overscroll-behavior-y: none; /* Prevents outer elastic bounce revealing browser blank edges */
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
 }

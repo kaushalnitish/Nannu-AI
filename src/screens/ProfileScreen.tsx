@@ -76,6 +76,42 @@ export default function ProfileScreen({
   const [writingSampleTab, setWritingSampleTab] = useState<"upload" | "script" | "caption">("upload");
   const [isAdvancedCollapsibleOpen, setIsAdvancedCollapsibleOpen] = useState(false);
 
+  const [stats, setStats] = useState({
+    scriptsGenerated: 0,
+    practiceSessions: 0,
+    totalPracticeSeconds: 0,
+    draftsSaved: 0,
+    currentStreak: 0
+  });
+
+  const formatSeconds = (totalSeconds: number) => {
+    if (totalSeconds === 0) return "0s";
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  };
+
+  useEffect(() => {
+    try {
+      const generated = parseInt(localStorage.getItem("nannu_scripts_generated_count") || "0", 10);
+      const practiceCount = parseInt(localStorage.getItem("nannu_practice_sessions_count") || "0", 10);
+      const practiceSecs = parseInt(localStorage.getItem("nannu_practice_sessions_duration") || "0", 10);
+      const savedCount = getSavedLibrary().length;
+      const streak = parseInt(localStorage.getItem("nannu_practice_streak") || "1", 10);
+
+      setStats({
+        scriptsGenerated: Math.max(generated, savedCount),
+        practiceSessions: practiceCount,
+        totalPracticeSeconds: practiceSecs,
+        draftsSaved: savedCount,
+        currentStreak: practiceCount > 0 ? streak : 0
+      });
+    } catch (e) {
+      console.warn("Storage stats lookup failed", e);
+    }
+  }, [activeSection]);
+
   // Local state for developer diagnostics and analytics logs
   const [analyticsEvents, setAnalyticsEvents] = useState<any[]>([]);
 
@@ -403,24 +439,6 @@ export default function ProfileScreen({
                 </GlowCard>
               </button>
 
-              {/* Content Preferences */}
-              <button
-                onClick={() => setActiveSection("preferences")}
-                className="w-full text-left focus:outline-none transition-transform active:scale-[0.99] block"
-              >
-                <GlowCard glowColor="none" className="p-4 bg-[#111111]/90 border-white/5 hover:border-white/10 flex items-center justify-between cursor-pointer transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-[#C8FF5A]/10 text-[#C8FF5A]">
-                      <Sliders size={18} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Content Preferences</h4>
-                      <p className="text-[10px] text-[#A1A1AA] mt-0.5">Adjust pacing length templates and default content style registers.</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-[#A1A1AA]" />
-                </GlowCard>
-              </button>
 
               {/* Train Nannu AI */}
               <button
@@ -1275,71 +1293,53 @@ export default function ProfileScreen({
             animate={{ opacity: 1 }}
             className="space-y-4 font-sans"
           >
-            {/* Real Stats parameters grids */}
-            <div className="grid grid-cols-2 gap-3">
-              <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
-                <span className="text-[18px] font-black font-mono text-white block mb-0.5">8,420</span>
-                <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Words Formulated</span>
-              </GlowCard>
-              <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
-                <span className="text-[18px] font-black font-mono text-[#C8FF5A] block mb-0.5">14m 24s</span>
-                <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Engagement Screen-Time</span>
-              </GlowCard>
-              <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
-                <span className="text-[18px] font-black font-mono text-[#FF4FD8] block mb-0.5">99.2%</span>
-                <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Tone Resonance Score</span>
-              </GlowCard>
-              <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
-                <span className="text-[18px] font-black font-mono text-blue-400 block mb-0.5">12 Days</span>
-                <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Active Generation Streak</span>
-              </GlowCard>
-            </div>
-
-            {/* Analytical Graph representation mockup */}
-            <GlowCard glowColor="none" className="p-4 bg-[#111111]/95 border-white/5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-mono text-white uppercase tracking-wider font-bold">Synapse Generation Growth</span>
-                <span className="text-[9px] text-[#A1A1AA]">LAST 7 DAYS</span>
+            {/* Real Stats parameters grids or Empty State if no stats yet */}
+            {stats.scriptsGenerated === 0 && stats.practiceSessions === 0 && stats.draftsSaved === 0 && stats.totalPracticeSeconds === 0 ? (
+              <div className="text-center p-8 bg-[#111111]/90 border border-white/5 rounded-2xl font-sans">
+                <BarChart3 className="mx-auto text-[#A1A1AA] mb-2" size={24} />
+                <h4 className="text-xs font-bold text-white mb-1 uppercase tracking-wide">No Analytics Logged Yet</h4>
+                <p className="text-[10px] text-[#A1A1AA] max-w-[220px] mx-auto leading-relaxed">
+                  Start generating your custom script or practicing with the live teleprompter to see real-time statistics here.
+                </p>
               </div>
-              <div className="h-28 flex items-end gap-2.5 pt-4 px-2">
-                {[20, 45, 30, 80, 65, 95, 84].map((height, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                    <div className="w-full bg-[#050505] rounded-md h-20 flex items-end overflow-hidden border border-white/[0.02]">
-                      <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: `${height}%` }}
-                        transition={{ delay: i * 0.05, duration: 0.6 }}
-                        className={`w-full rounded-b-md ${
-                          i === 5 ? "bg-gradient-to-t from-[#FF4FD8] to-[#D946EF]" : "bg-white/10"
-                        }`}
-                      />
-                    </div>
-                    <span className="text-[8px] font-mono text-[#A1A1AA] uppercase">
-                      {["m", "t", "w", "t", "f", "s", "s"][i]}
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {stats.scriptsGenerated > 0 && (
+                  <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
+                    <span className="text-[18px] font-black font-mono text-white block mb-0.5">{stats.scriptsGenerated}</span>
+                    <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Scripts Generated</span>
+                  </GlowCard>
+                )}
+                {stats.draftsSaved > 0 && (
+                  <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
+                    <span className="text-[18px] font-black font-mono text-white block mb-0.5">{stats.draftsSaved}</span>
+                    <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Drafts Saved</span>
+                  </GlowCard>
+                )}
+                {stats.practiceSessions > 0 && (
+                  <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
+                    <span className="text-[18px] font-black font-mono text-[#C8FF5A] block mb-0.5">{stats.practiceSessions}</span>
+                    <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Practice Sessions</span>
+                  </GlowCard>
+                )}
+                {stats.totalPracticeSeconds > 0 && (
+                  <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center">
+                    <span className="text-[18px] font-black font-mono text-[#FF4FD8] block mb-0.5">
+                      {formatSeconds(stats.totalPracticeSeconds)}
                     </span>
-                  </div>
-                ))}
+                    <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Total Practice Time</span>
+                  </GlowCard>
+                )}
+                {stats.currentStreak > 0 && (
+                  <GlowCard glowColor="none" className="p-3.5 bg-[#111111]/90 border-white/5 text-center col-span-2">
+                    <span className="text-[18px] font-black font-mono text-blue-400 block mb-0.5">
+                      {stats.currentStreak} {stats.currentStreak === 1 ? "Day" : "Days"}
+                    </span>
+                    <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider">Current Practice Streak</span>
+                  </GlowCard>
+                )}
               </div>
-            </GlowCard>
-
-            {/* Silent logs panel list */}
-            <GlowCard glowColor="none" className="p-4 bg-[#111111]/90 border-white/5 text-left">
-              <span className="text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wider block mb-2">Interaction History Signals</span>
-              <div className="space-y-1.5 text-[10px] font-mono text-[#999]">
-                <div className="flex justify-between hover:text-white transition-colors py-1 border-b border-white/[0.02]">
-                  <span>Tracked Copy Event (Screentime match)</span>
-                  <span className="text-white">Just now</span>
-                </div>
-                <div className="flex justify-between hover:text-white transition-colors py-1 border-b border-white/[0.02]">
-                  <span>Tracked Script Inline Edit block</span>
-                  <span className="text-[#FF4FD8]">4 mins ago</span>
-                </div>
-                <div className="flex justify-between hover:text-white transition-colors py-1 border-b border-white/[0.02]">
-                  <span>Vibe calibration index updated</span>
-                  <span className="text-white">2 hours ago</span>
-                </div>
-              </div>
-            </GlowCard>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

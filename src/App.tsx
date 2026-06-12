@@ -361,7 +361,8 @@ export default function App() {
           { title: "The Brutal Truth", description: "Apple-inspired elegant layout with large serif typography." },
           { title: "Nannu AI Blueprint", description: "Minimalist layout with clean data panels and creator scorecards." }
         ],
-        isFallback: true
+        isFallback: true,
+        errorReason: err.message || String(err)
       };
 
       setGeneratedPayload(backupPayload);
@@ -573,9 +574,15 @@ export default function App() {
       case "create/duration":
         return (
           <DurationScreen
-            onNext={handleDurationSelect}
+            onGenerate={handleFormatSelectAndGenerate}
             onBack={() => navigateTo("home")}
             savedDuration={duration}
+            onDurationChange={setDuration}
+            savedContentType={contentType}
+            onContentTypeChange={setContentType}
+            savedMood={mood}
+            onMoodChange={setMood}
+            prompt={prompt}
           />
         );
       case "create/type":

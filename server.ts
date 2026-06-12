@@ -33,25 +33,53 @@ const app = express();
 app.use(express.json());
 const PORT = 3000;
 
-// Initialize Google GenAI
-const apiKey = process.env.GEMINI_API_KEY;
-let ai: GoogleGenAI | null = null;
-if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
+// Diagnostic logging on server start
+const initialApiKey = process.env.GEMINI_API_KEY;
+if (!initialApiKey) {
+  console.warn("DIAGNOSTIC LOG: Startup - Environment missing: GEMINI_API_KEY is not defined in process.env");
+} else if (initialApiKey === "MY_GEMINI_API_KEY" || initialApiKey.trim() === "" || initialApiKey.trim() === "undefined") {
+  console.warn("DIAGNOSTIC LOG: Startup - Environment malformed: GEMINI_API_KEY is still set to placeholder 'MY_GEMINI_API_KEY' or empty.");
+} else {
+  console.log("DIAGNOSTIC LOG: Startup - Environment loaded: GEMINI_API_KEY is present on start with length " + initialApiKey.length + " chars.");
+}
+
+// Lazy initialization of GoogleGenAI
+let aiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  const key = process.env.GEMINI_API_KEY;
+
+  if (!key) {
+    console.error("DIAGNOSTIC LOG: Runtime - Environment missing: GEMINI_API_KEY is not defined.");
+    throw new Error("API key missing: GEMINI_API_KEY environment variable is not defined on the server runtime.");
+  }
+  if (key === "MY_GEMINI_API_KEY" || key.trim() === "" || key.trim() === "undefined") {
+    console.error("DIAGNOSTIC LOG: Runtime - Environment malformed: GEMINI_API_KEY contains placeholder or empty value.");
+    throw new Error("API key malformed: GEMINI_API_KEY is not configured with a valid secret key.");
+  }
+
+  // If a client already exists, use it
+  if (aiClient) {
+    return aiClient;
+  }
+
+  console.log("DIAGNOSTIC LOG: Runtime - Environment loaded: GEMINI_API_KEY is verified and now instantiating GoogleGenAI client.");
   try {
-    ai = new GoogleGenAI({
-      apiKey: apiKey,
+    aiClient = new GoogleGenAI({
+      apiKey: key,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
         }
       }
     });
-    console.log("Initialized server-side Gemini AI successfully.");
-  } catch (err) {
-    console.error("Failed to initialize server-side Gemini:", err);
+    console.log("Lazy initialized GoogleGenAI client successfully.");
+    return aiClient;
+  } catch (err: any) {
+    const errMsg = err.message || String(err);
+    console.error("DIAGNOSTIC LOG: Failed to instantiate GoogleGenAI client:", errMsg);
+    throw new Error(`API unavailable: Failed to initialize GoogleGenAI: ${errMsg}`);
   }
-} else {
-  console.log("No valid GEMINI_API_KEY found, running in high-fidelity sandbox simulation mode.");
 }
 
 // Fallback high-fidelity creators data for Instant Sandbox Generation (Very robust experience if key hasn't loaded yet)
@@ -124,11 +152,21 @@ app.post("/api/generate", async (req, res) => {
     Do not output any markdown wrapper (e.g., no raw \`\`\`json tags) outside the JSON structure. Just return true, standard parsed JSON content.
   `;
 
-  if (ai) {
+  let client: GoogleGenAI | null = null;
+  let geminiErrorMsg = "";
+
+  try {
+    client = getGeminiClient();
+  } catch (initErr: any) {
+    geminiErrorMsg = initErr.message || String(initErr);
+    console.warn("DIAGNOSTIC LOG: Gemini initialization bypassed. Reason:", geminiErrorMsg);
+  }
+
+  if (client) {
     try {
       console.log("Asking Gemini 3.5 Flash for content creation...");
       console.log("SENDING PROMPT TO GEMINI:", prompt);
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model: "gemini-3.5-flash",
         contents: `Create content based on this topic: "${prompt}".`,
         config: {
@@ -192,14 +230,17 @@ app.post("/api/generate", async (req, res) => {
       const responseText = response.text;
       if (responseText) {
         const parsed = JSON.parse(responseText.trim());
+        parsed.isFallback = false;
+        console.log("DIAGNOSTIC LOG: Primary pipeline succeeded on gemini-3.5-flash.");
         return res.json(parsed);
       }
     } catch (err: any) {
-      console.error("Gemini 3.5 Flash Generation Error, trying gemini-3.1-flash-lite fallback:", err.message || err);
+      const firstErr = err.message || String(err);
+      console.error("DIAGNOSTIC LOG: Gemini 3.5 Flash Generation Error, trying gemini-3.1-flash-lite fallback:", firstErr);
       try {
         console.log("Asking Gemini 3.1 Flash Lite for content creation as resilient fallback...");
         console.log("SENDING PROMPT TO GEMINI (LITE FALLBACK):", prompt);
-        const responseLite = await ai.models.generateContent({
+        const responseLite = await client.models.generateContent({
           model: "gemini-3.1-flash-lite",
           contents: `Create content based on this topic: "${prompt}".`,
           config: {
@@ -263,10 +304,13 @@ app.post("/api/generate", async (req, res) => {
         const responseTextLite = responseLite.text;
         if (responseTextLite) {
           const parsed = JSON.parse(responseTextLite.trim());
+          parsed.isFallback = false;
+          console.log("DIAGNOSTIC LOG: Resilient fallback succeeded on gemini-3.1-flash-lite.");
           return res.json(parsed);
         }
       } catch (errLite: any) {
-        console.error("Gemini 3.1 Flash Lite Generation Error, falling back to local simulation builder:", errLite.message || errLite);
+        geminiErrorMsg = `Gemini-3.5-Flash failure: ${firstErr}. Gemini-3.1-Flash-Lite failure: ${errLite.message || String(errLite)}`;
+        console.error("DIAGNOSTIC LOG: Gemini 3.1 Flash Lite Generation Error, falling back to local simulation builder:", geminiErrorMsg);
       }
     }
   }
@@ -392,7 +436,9 @@ app.post("/api/generate", async (req, res) => {
       { title: tTitle1, description: `Minimalist slate card hovering above midnight backspace related to "${prompt}", with CTA Green highlight borders.` },
       { title: tTitle2, description: `Apple Vision Pro style translucent panels highlighting "${prompt}" with purple neon backlighting and heavy luxury typography.` },
       { title: tTitle3, description: `Space Grotesk typography overlay with visual cues of "${prompt}", ultra-clean design matrix, high-retention glow indicators.` }
-    ]
+    ],
+    isFallback: true,
+    errorReason: geminiErrorMsg || "Gemini Client bypassed or API rate limit active."
   };
 
   setTimeout(() => {
@@ -425,10 +471,17 @@ app.post("/api/polish", async (req, res) => {
     Do not output any markdown wrapper (no raw \`\`\`json tags). Just return true parsed JSON.
   `;
 
-  if (ai) {
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getGeminiClient();
+  } catch (initErr: any) {
+    console.warn("DIAGNOSTIC LOG: Gemini initialization bypassed for polish. Reason:", initErr.message || String(initErr));
+  }
+
+  if (client) {
     try {
       console.log("Asking Gemini AI to polish script...", currentText);
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model: "gemini-3.5-flash",
         contents: `Please refine and provide 3 variations of this script body: "${currentText}". The core topic of the video is: "${prompt || ""}", content type is "${contentType || ""}", and mood is "${mood || ""}".`,
         config: {
@@ -556,14 +609,21 @@ app.post("/api/analyze-creator", upload.single("videoFile"), async (req, res) =>
 
   let responseData: any = null;
 
-  if (ai) {
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getGeminiClient();
+  } catch (initErr: any) {
+    console.warn("DIAGNOSTIC LOG: Gemini initialization bypassed for analyze-creator. Reason:", initErr.message || String(initErr));
+  }
+
+  if (client) {
     try {
       console.log("Using Gemini 3.5 Flash to analyze content from source...");
       const promptToAnalyze = pastedTranscript
         ? `Analyze this pasted raw transcript: "${pastedTranscript}"`
         : `Analyze this creator video structure. Original Reference label is: "${sourceLabel}". Study its theme, speaking style, visual cues and recreate its metadata DNA.`;
 
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model: "gemini-3.5-flash",
         contents: promptToAnalyze,
         config: {
@@ -731,7 +791,14 @@ app.post("/api/convert-to-my-style", async (req, res) => {
     Do not output any markdown wrapper (no raw \`\`\`json tags) outside the JSON structure. Just return standard parsed JSON content.
   `;
 
-  if (ai) {
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getGeminiClient();
+  } catch (initErr: any) {
+    console.warn("DIAGNOSTIC LOG: Gemini initialization bypassed for style transformation. Reason:", initErr.message || String(initErr));
+  }
+
+  if (client) {
     try {
       console.log("Using Gemini 3.5 Flash for style transformation...");
       const transformPrompt = `
@@ -748,7 +815,7 @@ app.post("/api/convert-to-my-style", async (req, res) => {
         - Duration: ${duration}
       `;
 
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model: "gemini-3.5-flash",
         contents: transformPrompt,
         config: {

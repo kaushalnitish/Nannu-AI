@@ -67,8 +67,8 @@ export default function TeleprompterOverlay({
       }
     } catch (e) {}
     // Default: centered at the top area of the screen with compact 45% width (was 65%)
-    const targetW = window.innerWidth > 768 ? Math.max(320, Math.floor(window.innerWidth * 0.45)) : window.innerWidth - 32;
-    return { x: Math.floor((window.innerWidth - targetW) / 2), y: 90 };
+    const targetW = window.innerWidth > 768 ? Math.max(320, Math.floor(window.innerWidth * 0.45)) : window.innerWidth - 16;
+    return { x: Math.floor((window.innerWidth - targetW) / 2), y: 80 };
   });
 
   // Resizable Teleprompter Dimensions State
@@ -83,10 +83,27 @@ export default function TeleprompterOverlay({
       }
     } catch (e) {}
     return { 
-      width: window.innerWidth > 768 ? Math.max(320, Math.floor(window.innerWidth * 0.45)) : window.innerWidth - 32, 
-      height: 230 
+      width: window.innerWidth > 768 ? Math.max(320, Math.floor(window.innerWidth * 0.45)) : window.innerWidth - 16, 
+      height: 220 
     };
   });
+
+  // Keep floating block safely within user viewport boundaries on load or resize (prevents offscreen widgets on mobile!)
+  useEffect(() => {
+    const handleViewportBoundaries = () => {
+      setPosition(prev => {
+        const maxX = window.innerWidth - size.width - 8;
+        const maxY = window.innerHeight - size.height - 8;
+        const clampedX = Math.max(8, Math.min(maxX > 8 ? maxX : 8, prev.x));
+        const clampedY = Math.max(8, Math.min(maxY > 8 ? maxY : 8, prev.y));
+        return { x: clampedX, y: clampedY };
+      });
+    };
+
+    handleViewportBoundaries();
+    window.addEventListener("resize", handleViewportBoundaries);
+    return () => window.removeEventListener("resize", handleViewportBoundaries);
+  }, [size.width, size.height]);
 
   // Creator Controls Configuration States (Persisted in LocalStorage)
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState<"S" | "M" | "L" | "XL">(() => {
@@ -100,7 +117,7 @@ export default function TeleprompterOverlay({
   });
 
   const [opacityValue, setOpacityValue] = useState<number>(() => {
-    return parseFloat(localStorage.getItem("tele_opacity_value") || "0.6");
+    return parseFloat(localStorage.getItem("tele_opacity_value") || "0.3");
   });
 
   const [mirrorText, setMirrorText] = useState<boolean>(() => {
@@ -179,29 +196,56 @@ export default function TeleprompterOverlay({
     localStorage.setItem("tele_text_alignment", textAlignment);
   }, [textAlignment]);
 
-  // Webcam stream handlers
+  // Webcam stream handlers with robust fallback for video-only on mobile devices
   useEffect(() => {
     let activeStream: MediaStream | null = null;
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: "user" }, audio: true })
-      .then((s) => {
+    
+    const requestWebcam = async () => {
+      try {
+        console.log("DIAGNOSTIC LOG: Requesting video and audio userMedia...");
+        const s = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "user" }, 
+          audio: true 
+        });
+        console.log("DIAGNOSTIC LOG: Audio & Video stream obtained successfully.");
         activeStream = s;
         setStream(s);
         setCameraPermissionState("granted");
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
+      } catch (err: any) {
+        console.warn("DIAGNOSTIC LOG: Joint video/audio access failed. Retrying with video-only...", err);
+        try {
+          const sOnlyVideo = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" } 
+          });
+          console.log("DIAGNOSTIC LOG: Video-only stream obtained successfully.");
+          activeStream = sOnlyVideo;
+          setStream(sOnlyVideo);
+          setCameraPermissionState("granted");
+        } catch (err2: any) {
+          console.error("DIAGNOSTIC LOG: Both webcam attempts failed, raising denied prompt.", err2);
+          setCameraPermissionState("denied");
         }
-      })
-      .catch((err) => {
-        console.warn("Webcam access restricted or unavailable:", err);
-        setCameraPermissionState("denied");
-      });
+      }
+    };
+
+    requestWebcam();
 
     return () => {
       if (activeStream) {
-        activeStream.getTracks().forEach(track => track.stop());
+        activeStream.getTracks().forEach(track => {
+          try { track.stop(); } catch(e) {}
+        });
       }
     };
   }, []);
+
+  // Sync stream to video element once granted or changed (Resolves React initial render race-condition!)
+  useEffect(() => {
+    if (cameraPermissionState === "granted" && stream && videoRef.current) {
+      console.log("DIAGNOSTIC LOG: Syncing stream to video element srcObject.");
+      videoRef.current.srcObject = stream;
+    }
+  }, [cameraPermissionState, stream]);
 
   // 2-Seconds Auto Hide Controls engine
   useEffect(() => {
@@ -306,6 +350,27 @@ export default function TeleprompterOverlay({
       scrollContainerRef.current.scrollTop = 0;
     }
   };
+
+  // Track practice analytics metrics in real-time
+  useEffect(() => {
+    try {
+      const currentCount = parseInt(localStorage.getItem("nannu_practice_sessions_count") || "0", 10);
+      localStorage.setItem("nannu_practice_sessions_count", (currentCount + 1).toString());
+
+      const startTime = Date.now();
+      return () => {
+        const elapsedSecs = Math.round((Date.now() - startTime) / 1000);
+        const currentDur = parseInt(localStorage.getItem("nannu_practice_sessions_duration") || "0", 10);
+        localStorage.setItem("nannu_practice_sessions_duration", (currentDur + elapsedSecs).toString());
+        
+        // Also ensure streak is set up
+        const todayStr = new Date().toDateString();
+        localStorage.setItem("nannu_last_practice_date", todayStr);
+      };
+    } catch (e) {
+      console.warn("Storage limits restricted logging practice metrics", e);
+    }
+  }, []);
 
   // Keyboard controls
   useEffect(() => {
@@ -601,7 +666,7 @@ export default function TeleprompterOverlay({
       <div
         ref={panelRef}
         id="floating-teleprompter"
-        className="absolute z-40 flex flex-col rounded-2xl border transition-all duration-500 cursor-default"
+        className="fixed z-40 flex flex-col rounded-2xl border cursor-default shadow-2xl transition-colors transition-shadow duration-300"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -632,7 +697,7 @@ export default function TeleprompterOverlay({
             </span>
           </div>
 
-          {/* Compact Control Icons Row */}
+          {/* Compact Control Icons Row: KEEP ONLY PLAY, PAUSE, SETTINGS */}
           <div className="flex items-center gap-1.5 prevent-drag">
             {/* Play/Pause Button */}
             <button
@@ -656,24 +721,6 @@ export default function TeleprompterOverlay({
               title="Settings"
             >
               <Settings size={11} className={showSettingsDrawer ? "animate-spin" : ""} />
-            </button>
-
-            {/* Reset Scroll position */}
-            <button
-              onClick={handleResetScroll}
-              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center"
-              title="Restart Scroll"
-            >
-              <RotateCcw size={10} />
-            </button>
-
-            {/* Exit overlay: X icon */}
-            <button
-              onClick={onClose}
-              className="p-1 rounded text-[10px] text-zinc-400 hover:text-red-400 hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center"
-              title="Exit Reader"
-            >
-              <X size={11} />
             </button>
           </div>
         </div>
@@ -881,7 +928,7 @@ export default function TeleprompterOverlay({
                   <div>
                     <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">PROMPTER TRANSPARENCY:</span>
                     <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/5">
-                      {([0.2, 0.4, 0.6, 0.8, 1.0] as const).map((op) => (
+                      {([0.1, 0.3, 0.5, 0.7, 0.9] as const).map((op) => (
                         <button
                           key={op}
                           onClick={() => setOpacityValue(op)}
@@ -891,7 +938,7 @@ export default function TeleprompterOverlay({
                               : "bg-transparent border-transparent text-[#A1A1AA] hover:text-white"
                           }`}
                         >
-                          {(op * 100)}%
+                          {Math.round((1 - op) * 100)}%
                         </button>
                       ))}
                     </div>

@@ -745,6 +745,12 @@ export default function ScriptScreen({
           <p className="text-[10px] text-white/70 font-sans mt-0.5 leading-relaxed">
             API key missing or rate-limited. Nannu's local high-fidelity creator brain has crafted this custom script with Hinglish/Hindi dialect support.
           </p>
+          {payload.errorReason && (
+            <p className="text-[10px] text-[#FF4FD8] font-mono mt-1.5 border-t border-white/5 pt-1.5 leading-normal">
+              <span className="font-bold text-[#FF4FD8]/80 uppercase mr-1">Error Reason:</span>
+              {payload.errorReason}
+            </p>
+          )}
         </div>
       )}
 
