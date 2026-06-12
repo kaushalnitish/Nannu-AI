@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom modern scrollbar rules */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 79, 216, 0.2);
+}
+
+/* Custom styling for inputs to feel premium and borderless */
+textarea:focus, input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   SOLID GLOBAL LIGHT ACCESSIBILITY THEME OVERRIDES (APPLE-LEVEL PREMIUM STYLE)
+   ========================================================================== */
+
+/* High contrast background reset for root and core view wraps */
+html[data-theme="light"] {
+  background-color: #F5F5F7 !important;
+}
+
+html[data-theme="light"] body {
+  background-color: #F5F5F7 !important;
+  color: #1C1C1E !important;
+}
+
+[data-theme="light"] .min-h-screen {
+  background-color: #F5F5F7 !important;
+  color: #1C1C1E !important;
+}
+
+/* Scrollbar adjustment for crisp visibility */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.15) !important;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.3) !important;
+}
+
+/* Neutral off-black background overrides mapping to Apple F5F5F7 space */
+[data-[#050505]], 
+[data-theme="light"] .bg-\[\#050505\] {
+  background-color: #F5F5F7 !important;
+}
+
+[data-theme="light"] .bg-\[\#050505\]\/80 {
+  background-color: rgba(245, 245, 247, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+}
+
+/* Elevated White Glow Cards (Apple, Linear & Arc-level premium shadows) */
+[data-theme="light"] .bg-\[\#111111\] {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), 
+              0 4px 12px rgba(0, 0, 0, 0.02), 
+              0 12px 24px rgba(15, 23, 42, 0.025), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+[data-theme="light"] .bg-\[\#111111\]\/85,
+[data-theme="light"] .bg-\[\#111111\]\/90,
+[data-theme="light"] .bg-\[\#111111\]\/95 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), 
+              0 4px 12px rgba(0, 0, 0, 0.015), 
+              0 14px 28px rgba(15, 23, 42, 0.03), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+/* Specific inner containers & sub-sections (e.g. bento rails) */
+[data-theme="light"] .bg-\[\#090909\] {
+  background-color: #fcfcfd !important;
+  border-color: rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01), inset 0 1px 2px rgba(0,0,0,0.015) !important;
+}
+
+[data-theme="light"] .bg-\[\#0d0d0d\] {
+  background-color: #ebebef !important;
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01) !important;
+}
+
+[data-theme="light"] .bg-black\/45 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .bg-\[\#1a1a1a\],
+[data-theme="light"] .bg-[#1a1a1a] {
+  background-color: #e3e3e8 !important;
+}
+
+/* Touch & Hover targets button styling overrides */
+[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(124, 58, 237, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+}
+
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(124, 58, 237, 0.07) !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(124, 58, 237, 0.11) !important;
+}
+
+/* Typography with rich hierarchy & contrast (Deep ink tone #1C1C1E) */
+[data-theme="light"] .text-[#A1A1AA],
+[data-theme="light"] .text-\[\#A1A1AA\] {
+  color: #636366 !important; /* Premium dark-gray subheadings for clear compliance and contrast */
+}
+
+[data-theme="light"] .text-white {
+  color: #1C1C1E !important; /* Elegant ink body text */
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .text-white\/40 {
+  color: rgba(28, 28, 30, 0.45) !important;
+}
+
+[data-theme="light"] .text-white\/60 {
+  color: rgba(28, 28, 30, 0.65) !important;
+}
+
+[data-theme="light"] .text-white\/80 {
+  color: rgba(28, 28, 30, 0.85) !important;
+}
+
+/* Borders mapping to hairline details */
+[data-theme="light"] .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Placeholders input styling */
+[data-theme="light"] ::placeholder {
+  color: #9da3af !important;
+}
+[data-theme="light"] .placeholder-\[\#555\]::placeholder {
+  color: #8e8e93 !important;
+}
+
+/* Flat Pink -> High-end Purple-to-Magenta Premium Gradients & Accents */
+[data-theme="light"] .text-\[\#FF4FD8\],
+[data-theme="light"] .text-pink {
+  color: #7C3AED !important; /* Elegant Indigo Purple */
+}
+
+[data-theme="light"] .selection\:bg-\[\#FF4FD8\]\/30,
+[data-theme="light"] ::selection {
+  background-color: rgba(124, 58, 237, 0.18) !important;
+  color: #7C3AED !important;
+}
+
+[data-theme="light"] .bg-\[\#FF4FD8\],
+[data-theme="light"] .bg-pink {
+  background: linear-gradient(135deg, #7C3AED 0%, #D946EF 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25) !important;
+  border: none !important;
+}
+
+[data-theme="light"] .bg-\[\#FF4FD8\]\/10 {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+}
+
+[data-theme="light"] .border-\[\#FF4FD8\]\/20,
+[data-theme="light"] .border-\[\#FF4FD8\]\/25 {
+  border-color: rgba(124, 58, 237, 0.15) !important;
+}
+
+[data-theme="light"] .focus\:border-\[\#FF4FD8\]\/40:focus {
+  border-color: rgba(124, 58, 237, 0.4) !important;
+}
+
+[data-theme="light"] svg.lucide {
+  /* Dynamic conversion of pink icon attributes to gorgeous purple/indigo inside bottom bars or states */
+}
+
+[data-theme="light"] svg[stroke="#FF4FD8"],
+[data-theme="light"] svg .text-\[\#FF4FD8\] {
+  color: #7C3AED !important;
+  stroke: #7C3AED !important;
+}
+
+/* Keep lime green brand action design intact but dark caption contrast */
+[data-theme="light"] .bg-\[\#C8FF5A\] {
+  background-color: #C8FF5A !important;
+  color: #111115 !important;
+  box-shadow: 0 4px 14px rgba(200, 255, 90, 0.35) !important;
+}
+
+[data-theme="light"] .text-\[\#C8FF5A\] {
+  color: #4A7A00 !important; /* Darker green element for readability */
+}
+
+/* Bottom Navigation Floating Glass Dock (Linear + Apple Level Luxe) */
+[data-theme="light"] .fixed.bottom-0 {
+  background-color: transparent !important;
+  border-top-color: transparent !important;
+  backdrop-filter: none !important;
+}
+
+[data-theme="light"] .fixed.bottom-0 > .max-w-md {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04), 
+              0 2px 8px rgba(0, 0, 0, 0.02), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  border-width: 1px !important;
+}
+
+/* Glass indicators for active navbar selection */
+[data-theme="light"] .fixed.bottom-0 .relative > div {
+  background-color: rgba(124, 58, 237, 0.07) !important;
+}
+
+/* Glowing container cards and backdrop overrides */
+[data-theme="light"] .from-\[\#FF4FD8\]\/5 {
+  --tw-gradient-from: rgba(124, 58, 237, 0.03) !important;
+}
+[data-theme="light"] .from-\[\#A855F7\]\/4 {
+  --tw-gradient-from: rgba(139, 92, 246, 0.02) !important;
+}
+[data-theme="light"] .bg-gradient-to-tr.from-\[\#111111\].to-\[\#0A0A0A\] {
+  background-image: linear-gradient(to top right, #ffffff, #fafafa) !important;
+}
+
+/* Ensure interactive range slider background styling reads pristine (light mode purple rail accent) */
+[data-theme="light"] input[type="range"] {
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Nannu AI",
+  "description": "Your Personal AI Content Brain: mobile-first assistant for content creator ideation, scripting, captioning, and voice profiling.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
